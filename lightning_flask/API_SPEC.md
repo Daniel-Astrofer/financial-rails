@@ -1,3 +1,12 @@
+<!--
+Kerosene documentation metadata
+status: review-required
+audience: internal
+owner: rails
+source_of_truth: rails
+last_reviewed: 2026-09-03
+-->
+
 # Especificação da API Lightning Flask
 
 Exemplos de URL base neste documento usam:

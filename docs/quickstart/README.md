@@ -1,3 +1,12 @@
+<!--
+Kerosene documentation metadata
+status: review-required
+audience: internal
+owner: rails
+source_of_truth: rails
+last_reviewed: 2026-09-03
+-->
+
 # Kerosene Rails
 
 Owner: adapters between Kerosene services and external payment rails.
@@ -11,3 +20,6 @@ source.
 
 Pending: define immutable images in `kerosene-deploy`, add contract tests with
 KFE and create the GitHub remote. mTLS is intentionally outside this migration.
+
+Documentation map: [portal](../README.md) · [status](../STATUS.md) ·
+[API catalog](../reference/API_CATALOG.md) · [quickstart](../QUICKSTART.md).

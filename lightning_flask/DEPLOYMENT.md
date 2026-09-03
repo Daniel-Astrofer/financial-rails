@@ -1,3 +1,12 @@
+<!--
+Kerosene documentation metadata
+status: review-required
+audience: internal
+owner: rails
+source_of_truth: rails
+last_reviewed: 2026-09-03
+-->
+
 # Guia de Implantação do Lightning Flask
 
 Este guia descreve como executar o backend Lightning Flask como um serviço interno conectado a um nó LND REST.

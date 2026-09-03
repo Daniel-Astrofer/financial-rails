@@ -2,10 +2,7 @@ from __future__ import annotations
 
 import hmac
 import os
-import threading
-import time
 import uuid
-from collections import defaultdict, deque
 from typing import Any, Callable
 
 from flask import Flask, Response, g, jsonify, request
@@ -17,65 +14,13 @@ from src.infra.rpc import BitcoinRPCClient
 from src.services.bitcoin_service import BitcoinBackendService, fingerprint_for_request
 from src.infra.store import CohesionStore, IdempotencyClaim, IdempotencyReplay
 from src.core.validation import validate_idempotency_key, validate_wallet_name
+from src.core.rate_limit import FixedWindowLimiter, RedisRateLimiter
 
 
 JsonHandler = Callable[
     [dict[str, Any], str | None, str, str | None, str | None],
     tuple[dict[str, Any], int] | dict[str, Any],
 ]
-
-
-class FixedWindowLimiter:
-    def __init__(self, limit: int, window_seconds: int = 60) -> None:
-        self._limit = limit
-        self._window_seconds = window_seconds
-        self._events: dict[str, deque[float]] = defaultdict(deque)
-        self._lock = threading.Lock()
-
-    def allow(self, key: str) -> bool:
-        with self._lock:
-            now = time.monotonic()
-            events = self._events[key]
-            while events and now - events[0] > self._window_seconds:
-                events.popleft()
-            if len(events) >= self._limit:
-                return False
-            events.append(now)
-            return True
-
-
-class RedisRateLimiter:
-    """Redis-backed distributed rate limiter for multi-worker deployments."""
-
-    def __init__(self, redis_url: str, limit_per_minute: int, *, fail_open: bool):
-        self._redis_url = redis_url
-        self._limit = max(1, int(limit_per_minute))
-        self._fail_open = fail_open
-        self._redis: Any = None
-
-    def _ensure_redis(self) -> Any:
-        if self._redis is not None:
-            return self._redis
-        try:
-            import redis as redis_lib
-            self._redis = redis_lib.Redis.from_url(self._redis_url, socket_timeout=5)
-            self._redis.ping()
-        except Exception:
-            self._redis = False
-        return self._redis
-
-    def allow(self, key: str) -> bool:
-        r = self._ensure_redis()
-        if r is False:
-            return self._fail_open
-        try:
-            redis_key = f"ratelimit:bitcoin:{key}:60"
-            count = r.incr(redis_key)
-            if count == 1:
-                r.expire(redis_key, 60)
-            return count <= self._limit
-        except Exception:
-            return self._fail_open
 
 
 def create_app(config: AppConfig | None = None) -> Flask:

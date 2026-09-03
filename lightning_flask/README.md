@@ -1,3 +1,12 @@
+<!--
+Kerosene documentation metadata
+status: review-required
+audience: internal
+owner: rails
+source_of_truth: rails
+last_reviewed: 2026-09-03
+-->
+
 # Lightning Flask Backend
 
 O Lightning Flask backend é um pequeno serviço Python que expõe uma fachada HTTP protegida sobre um nó LND REST. Ele é destinado a serviços internos do Kerosene que precisam de status do nó Lightning, visibilidade de canais, criação de faturas, envio de pagamentos, consulta de pagamentos e um snapshot local de coesão sem expor o LND diretamente.

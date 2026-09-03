@@ -1,3 +1,12 @@
+<!--
+Kerosene documentation metadata
+status: review-required
+audience: internal
+owner: rails
+source_of_truth: rails
+last_reviewed: 2026-09-03
+-->
+
 # Bitcoin Core Flask Backend
 
 Este módulo expõe uma pequena API Flask em torno do JSON-RPC do Bitcoin Core para operações de carteira, criação de PSBT, broadcast opcional e coesão local de requisições.
