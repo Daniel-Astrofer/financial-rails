@@ -2,8 +2,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from src.core.errors import ApiError
-from src.infra.store import CohesionStore, IdempotencyClaim
+from src.application.errors import ApiError
+from src.adapters.outbound.persistence.store import CohesionStore, IdempotencyClaim
 
 
 class CohesionStoreTests(unittest.TestCase):
@@ -31,14 +31,14 @@ class CohesionStoreTests(unittest.TestCase):
     def test_expired_idempotency_key_can_be_reused_for_new_scope(self):
         with tempfile.NamedTemporaryFile() as tmp:
             store = CohesionStore(tmp.name, idempotency_ttl_seconds=1)
-            with patch("src.infra.store.time.time", return_value=1000):
+            with patch("src.adapters.outbound.persistence.store.time.time", return_value=1000):
                 first = store.claim_idempotent("request-000001", "POST:/v1/a", "hash-a")
                 self.assertIsInstance(first, IdempotencyClaim)
                 store.store_response(
                     "request-000001", "POST:/v1/a", "hash-a", first.token, 200, {"route": "a"}
                 )
 
-            with patch("src.infra.store.time.time", return_value=1002):
+            with patch("src.adapters.outbound.persistence.store.time.time", return_value=1002):
                 self.assertIsNone(store.get_replay("request-000001", "POST:/v1/a", "hash-a"))
                 second = store.claim_idempotent("request-000001", "POST:/v1/b", "hash-b")
                 self.assertIsInstance(second, IdempotencyClaim)
@@ -55,9 +55,9 @@ class CohesionStoreTests(unittest.TestCase):
     def test_stale_owner_is_fenced_after_lease_takeover(self):
         with tempfile.NamedTemporaryFile() as tmp:
             store = CohesionStore(tmp.name, idempotency_ttl_seconds=3600, claim_lease_seconds=5)
-            with patch("src.infra.store.time.time", return_value=1000):
+            with patch("src.adapters.outbound.persistence.store.time.time", return_value=1000):
                 first = store.claim_idempotent("key", "POST:/send", "hash")
-            with patch("src.infra.store.time.time", return_value=1006):
+            with patch("src.adapters.outbound.persistence.store.time.time", return_value=1006):
                 second = store.claim_idempotent("key", "POST:/send", "hash")
 
             self.assertIsInstance(first, IdempotencyClaim)
@@ -73,7 +73,7 @@ class CohesionStoreTests(unittest.TestCase):
         expected_txid = "ab" * 32
         with tempfile.NamedTemporaryFile() as tmp:
             store = CohesionStore(tmp.name, idempotency_ttl_seconds=3600, claim_lease_seconds=5)
-            with patch("src.infra.store.time.time", return_value=1000):
+            with patch("src.adapters.outbound.persistence.store.time.time", return_value=1000):
                 first = store.claim_idempotent("key", "POST:/send", "hash")
                 prepared = store.save_prepared_broadcast(
                     key="key",
@@ -88,7 +88,7 @@ class CohesionStoreTests(unittest.TestCase):
                     total_output_sats=1000,
                     network="regtest",
                 )
-            with patch("src.infra.store.time.time", return_value=1006):
+            with patch("src.adapters.outbound.persistence.store.time.time", return_value=1006):
                 second = store.claim_idempotent("key", "POST:/send", "hash")
 
             recovered = store.load_prepared_broadcast("key", "hash")

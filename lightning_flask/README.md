@@ -13,9 +13,9 @@ O Lightning Flask backend é um pequeno serviço Python que expõe uma fachada H
 
 Este serviço:
 
-- Exige autenticação via bearer-token para todos os endpoints exceto `GET /health`.
+- Exige autenticação via bearer-token para as rotas de negócio; rotas administrativas usam `X-Kerosene-Admin-Key` e `GET /health` é público.
 - Faz proxy de um conjunto limitado de operações LND REST através de modelos de requisição validados.
-- Suporta chaves de idempotência opcionais para requisições de mutação.
+- Exige chaves de idempotência para criação de faturas e envio de pagamentos.
 - Armazena registros de idempotência e eventos operacionais sanitizados em SQLite.
 - Evita persistir faturas BOLT11, macaroons, tokens de API ou preimages de pagamento no registro de eventos de coesão.
 
@@ -23,16 +23,18 @@ Este serviço:
 
 ```text
 lightning_flask/
-  app.py              Flask app factory, rotas, hooks de autenticação, tratamento de erros
-  config.py           Configurações baseadas em variáveis de ambiente
-  lnd.py              Cliente REST LND e normalização de respostas
-  security.py         Autenticação, validação, limite de taxa, fingerprinting de requisição
-  cohesion.py         Armazenamento de idempotência e eventos sanitizados em SQLite
+  src/application/    Segurança, validação e contratos da capacidade Lightning
+  src/adapters/       Flask inbound e adapters outbound para LND e SQLite
+  src/config/         Settings baseados em variáveis de ambiente
   requirements.txt    Dependências de runtime Python
   tests/test_app.py   Testes de rotas e validação Flask com um cliente LND fake
   DEPLOYMENT.md       Guia de implantação e operação
   API_SPEC.md         Contrato da API HTTP
 ```
+
+O código de transporte e integração fica em `src/adapters`; a capacidade não
+deve importar Flask, SQLite ou o cliente HTTP do LND diretamente. A composição
+da aplicação é `src.adapters.inbound.http.app:create_app`.
 
 ## Requisitos
 
@@ -57,21 +59,24 @@ A aplicação lê configurações de variáveis de ambiente por padrão.
 
 | Variável | Obrigatório | Padrão | Descrição |
 | --- | --- | --- | --- |
-| `KEROSENE_API_TOKEN` | Sim | None | Token Bearer esperado dos clientes. Deve ter pelo menos 32 caracteres. |
+| `KEROSENE_API_TOKEN` | Condicional | None | Token Bearer compartilhado de fallback quando `LIGHTNING_READ_TOKEN` e `LIGHTNING_WRITE_TOKEN` não estão definidos. Deve ter pelo menos 32 bytes de entropia. |
+| `LIGHTNING_READ_TOKEN` | Condicional | None | Token Bearer para rotas de leitura. Deve ter pelo menos 32 bytes de entropia. |
+| `LIGHTNING_WRITE_TOKEN` | Condicional | None | Token Bearer para rotas de mutação. Deve ter pelo menos 32 bytes de entropia. |
+| `LIGHTNING_ADMIN_TOKEN` | Não | None | Chave para rotas administrativas. Deve ter pelo menos 32 bytes de entropia quando definida. |
 | `LIGHTNING_LND_REST_URL` | Sim | `https://127.0.0.1:8080` | URL absoluta `http://` ou `https://` para LND REST. Não deve incluir credenciais, query ou fragmento. |
 | `LIGHTNING_LND_MACAROON_HEX` | Uma fonte de macaroon necessária | None | Macaroon LND codificado em hexadecimal. |
 | `LIGHTNING_LND_MACAROON_PATH` | Uma fonte de macaroon necessária | None | Caminho para um arquivo de macaroon LND. Usado quando `LIGHTNING_LND_MACAROON_HEX` está vazio. |
 | `LIGHTNING_LND_TLS_CERT_PATH` | Geralmente para LND HTTPS | None | Caminho do certificado CA usado para verificar TLS do LND. |
 | `LIGHTNING_LND_TIMEOUT_SECONDS` | Não | `8` | Timeout para chamadas REST LND. |
-| `LIGHTNING_BACKEND_SQLITE` | Não | `lightning_backend.sqlite3` | Caminho do banco de dados SQLite para idempotência e eventos de coesão. |
+| `LIGHTNING_BACKEND_SQLITE` | Não | `/var/lib/kerosene/lightning-backend/state.sqlite3` | Caminho do banco de dados SQLite para idempotência e eventos de coesão. |
 | `LIGHTNING_BACKEND_MAX_BODY_BYTES` | Não | `65536` | Tamanho máximo aceito do corpo da requisição. |
 | `LIGHTNING_BACKEND_RATE_LIMIT_PER_MINUTE` | Não | `120` | Limite de requisições por token/IP em memória. |
 | `LIGHTNING_BACKEND_STATUS_CACHE_SECONDS` | Não | `2` | Duração do cache para agregação de status do nó. |
 | `LIGHTNING_BACKEND_MAX_INVOICE_SATS` | Não | `50000000` | `amount_sats` máximo aceito para criação de fatura. |
-| `LIGHTNING_BACKEND_MAX_PAYMENT_SATS` | Não | `50000000` | Validado como uma configuração positiva e reservado para política de pagamento. |
+| `LIGHTNING_BACKEND_MAX_PAYMENT_SATS` | Não | `50000000` | Valor máximo aceito para pagamentos. |
 | `LIGHTNING_DEFAULT_INVOICE_EXPIRY_SECONDS` | Não | `3600` | Expiração padrão de fatura quando omitida. |
-| `HOST` | Não | `127.0.0.1` | Host usado apenas por `python app.py`. |
-| `PORT` | Não | `8091` | Porta usada apenas por `python app.py`. |
+| `HOST` | Não | `127.0.0.1` | Host usado pelo entrypoint local `python -m src.adapters.inbound.http.app`. |
+| `PORT` | Não | `8091` | Porta usada pelo entrypoint local `python -m src.adapters.inbound.http.app`. |
 
 ## Execução Local
 
@@ -93,7 +98,7 @@ export LIGHTNING_LND_MACAROON_PATH="/path/to/admin.macaroon"
 export LIGHTNING_LND_TLS_CERT_PATH="/path/to/tls.cert"
 export LIGHTNING_BACKEND_SQLITE="/tmp/lightning_backend.sqlite3"
 
-flask --app app:create_app run --host 127.0.0.1 --port 8091
+flask --app src.adapters.inbound.http.app:create_app run --host 127.0.0.1 --port 8091
 ```
 
 Health é público:
@@ -152,7 +157,7 @@ Consulte [API_SPEC.md](API_SPEC.md) para o contrato completo de requisição e r
 
 ## Idempotência
 
-`POST /v1/invoices` e `POST /v1/payments` aceitam um cabeçalho opcional `Idempotency-Key`.
+`POST /v1/invoices` e `POST /v1/payments` exigem um cabeçalho `Idempotency-Key`.
 
 - Reutilizar a mesma chave com o mesmo método, caminho e corpo retorna a resposta original.
 - Reutilizar a mesma chave com um corpo ou caminho diferente retorna `409 idempotency_conflict`.
@@ -168,7 +173,7 @@ Use chaves de idempotência para tentativas de cliente em criação de faturas e
 - O acesso LND usa `Grpc-Metadata-macaroon` e verificação opcional de TLS CA.
 - Requisições de mutação devem usar `Content-Type: application/json`.
 - Respostas incluem `Cache-Control: no-store` e `X-Content-Type-Options: nosniff`.
-- A limitação de taxa de requisições é em memória e chaveada pelos últimos 16 caracteres do cabeçalho de autorização mais o endereço remoto.
+- A limitação de taxa de requisições é em memória e chaveada pelos últimos 8 caracteres do bearer token mais o endereço remoto.
 - Metadados de eventos de coesão são sanitizados antes do armazenamento.
 
 Este serviço é adequado para ser usado atrás de um limite de rede privada, gateway interno, proxy reverso ou service mesh. Não foi projetado para ser exposto diretamente à internet pública.

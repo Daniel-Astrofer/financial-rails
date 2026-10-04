@@ -17,9 +17,10 @@ INVOICE = "lntb1" + "p" * 80
 
 @pytest.fixture(scope="module")
 def lightning_modules():
-    from src.api import app
-    from src.core import config, security
-    from src.infra import lnd
+    from src.adapters.inbound.http import app
+    from src.config import settings as config
+    from src.application import security
+    from src.adapters.outbound.lightning import lnd
 
     return {
         "app": app,

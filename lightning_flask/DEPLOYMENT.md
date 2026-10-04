@@ -93,7 +93,7 @@ cd lightning_flask
 set -a
 . /etc/kerosene/lightning-flask.env
 set +a
-flask --app app:create_app run --host 127.0.0.1 --port 8091
+flask --app src.adapters.inbound.http.app:create_app run --host 127.0.0.1 --port 8091
 ```
 
 O servidor de desenvolvimento do Flask é aceitável apenas para desenvolvimento local.
@@ -106,7 +106,7 @@ O servidor de desenvolvimento do Flask é aceitável apenas para desenvolvimento
 cd lightning_flask
 . .venv/bin/activate
 pip install gunicorn
-gunicorn 'app:create_app()' \
+gunicorn 'src.adapters.inbound.http.app:create_app()' \
   --bind 127.0.0.1:8091 \
   --workers 2 \
   --threads 4 \
@@ -133,7 +133,7 @@ User=kerosene
 Group=kerosene
 WorkingDirectory=/opt/kerosene/kerosene-rails/lightning_flask
 EnvironmentFile=/etc/kerosene/lightning-flask.env
-ExecStart=/opt/kerosene/kerosene-rails/lightning_flask/.venv/bin/flask --app app:create_app run --host 127.0.0.1 --port 8091
+ExecStart=/opt/kerosene/kerosene-rails/lightning_flask/.venv/bin/flask --app src.adapters.inbound.http.app:create_app run --host 127.0.0.1 --port 8091
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true
@@ -149,7 +149,7 @@ WantedBy=multi-user.target
 Para produção, substitua `ExecStart` por um servidor WSGI como o Gunicorn após instalá-lo:
 
 ```ini
-ExecStart=/opt/kerosene/kerosene-rails/lightning_flask/.venv/bin/gunicorn app:create_app() --bind 127.0.0.1:8091 --workers 2 --threads 4 --timeout 30
+ExecStart=/opt/kerosene/kerosene-rails/lightning_flask/.venv/bin/gunicorn src.adapters.inbound.http.app:create_app() --bind 127.0.0.1:8091 --workers 2 --threads 4 --timeout 30
 ```
 
 Em seguida, habilite o serviço:
@@ -197,7 +197,7 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn
 COPY . .
 USER 10001:10001
 EXPOSE 8091
-CMD ["gunicorn", "app:create_app()", "--bind", "0.0.0.0:8091", "--workers", "2", "--threads", "4"]
+CMD ["gunicorn", "src.adapters.inbound.http.app:create_app()", "--bind", "0.0.0.0:8091", "--workers", "2", "--threads", "4"]
 ```
 
 Compile a partir de `lightning_flask` se usar esse exemplo.

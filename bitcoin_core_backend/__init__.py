@@ -1,5 +1,5 @@
 """Bitcoin Core Flask backend module."""
 
-from src.core.config import AppConfig
+from src.config.settings import AppConfig
 
 __all__ = ["AppConfig"]
