@@ -1,18 +1,16 @@
+<!--
+status: active
+audience: internal
+owner: rails
+source_of_truth: rails adapter source trees and pyproject.toml files
+last_reviewed: 2026-09-03
+-->
+
 # Kerosene Rails
 
-Independent Python adapters for external payment rails:
+Independent Bitcoin Core and Lightning adapters. Start at the
+[documentation](../../kerosene-global-docs/services/financial-rails/docs/quickstart/README.md) and [quickstart](../../kerosene-global-docs/services/financial-rails/docs/quickstart/QUICKSTART.md).
 
-- `bitcoin_core_backend/`: authenticated Bitcoin Core HTTP facade;
-- `lightning_flask/`: authenticated LND HTTP facade.
+## Documentação global
 
-These are separate processes, not Core modules. Runtime and test dependencies
-remain separate so production packaging installs only each adapter's
-`requirements.txt`.
-
-Documentation: [English](docs/en/README.md) ·
-[Português (Brasil)](docs/pt-BR/README.md)
-
-## Validation
-
-Run tests from each adapter directory using an isolated Python environment.
-No credential, macaroon, TLS key or environment file belongs in this repository.
+Arquitetura transversal, regras de negócio compartilhadas e infraestrutura/operação global estão no repositório externo [kerosene-global-docs](../../kerosene-global-docs/README.md). A documentação inline de implementação permanece junto ao código neste repositório.

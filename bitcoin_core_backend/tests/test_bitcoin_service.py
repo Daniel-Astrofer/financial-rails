@@ -2,10 +2,10 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from src.core.config import AppConfig
-from src.core.errors import ApiError, RpcError
-from src.infra.store import CohesionStore, IdempotencyClaim
-from src.services.bitcoin_service import BitcoinBackendService
+from src.config.settings import AppConfig
+from src.application.errors import ApiError, RpcError
+from src.adapters.outbound.persistence.store import CohesionStore, IdempotencyClaim
+from src.application.service import BitcoinBackendService
 
 
 class AmbiguousBroadcastRpc:
@@ -82,7 +82,7 @@ class BitcoinBackendServiceTests(unittest.TestCase):
             rpc = AmbiguousBroadcastRpc(txid)
             service = BitcoinBackendService(config(tmp.name), rpc, store)
 
-            with patch("src.infra.store.time.time", return_value=1000):
+            with patch("src.adapters.outbound.persistence.store.time.time", return_value=1000):
                 first = store.claim_idempotent("principal:key", "POST:/send", "request-hash")
                 self.assertIsInstance(first, IdempotencyClaim)
                 with self.assertRaises(ApiError) as ambiguous:
@@ -98,7 +98,7 @@ class BitcoinBackendServiceTests(unittest.TestCase):
             self.assertEqual(store.idempotency_state("principal:key")["state"], "UNKNOWN")
 
             rpc.known = True
-            with patch("src.infra.store.time.time", return_value=1006):
+            with patch("src.adapters.outbound.persistence.store.time.time", return_value=1006):
                 second = store.claim_idempotent("principal:key", "POST:/send", "request-hash")
                 result = service.create_sign_and_send(
                     "kerosene",

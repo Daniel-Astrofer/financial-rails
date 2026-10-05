@@ -1,3 +1,12 @@
+<!--
+Kerosene documentation metadata
+status: review-required
+audience: internal
+owner: rails
+source_of_truth: rails
+last_reviewed: 2026-09-03
+-->
+
 # Especificação da API Lightning Flask
 
 Exemplos de URL base neste documento usam:
@@ -6,7 +15,7 @@ Exemplos de URL base neste documento usam:
 http://127.0.0.1:8091
 ```
 
-Todos os corpos de resposta são JSON. Todos os endpoints, exceto `GET /health`, exigem autenticação via bearer token.
+Todos os corpos de resposta são JSON. As rotas de negócio exigem autenticação via bearer token, as rotas administrativas usam `X-Kerosene-Admin-Key` e `GET /health` é público.
 
 ## Autenticação
 
@@ -34,9 +43,9 @@ Cabeçalhos de requisição:
 
 | Cabeçalho | Obrigatório | Descrição |
 | --- | --- | --- |
-| `Authorization` | Obrigatório exceto `/health` | Bearer token correspondente a `KEROSENE_API_TOKEN`. |
+| `Authorization` | Obrigatório nas rotas de negócio | Bearer token compartilhado ou token de leitura/escrita configurado. |
 | `Content-Type: application/json` | Obrigatório para `POST`, `PUT`, `PATCH` | Requisições de mutação devem ser objetos JSON. |
-| `Idempotency-Key` | Opcional para endpoints de mutação | Repete mutações lógicas idênticas e rejeita reuso conflitante. |
+| `Idempotency-Key` | Obrigatório para `POST /v1/invoices` e `POST /v1/payments` | Repete mutações lógicas idênticas e rejeita reuso conflitante. |
 
 Cabeçalhos de resposta:
 
@@ -102,8 +111,8 @@ Códigos de erro comuns:
 | `amount_sats` | Inteiro positivo e não maior que `LIGHTNING_BACKEND_MAX_INVOICE_SATS` para criação de faturas. |
 | `memo` | String de até 256 caracteres. Memo ausente torna-se string vazia. |
 | `expiry_seconds` | Inteiro de `60` a `2592000`. Padrão é `LIGHTNING_DEFAULT_INVOICE_EXPIRY_SECONDS`. |
-| `payment_request` | Fatura BOLT11 começando com `lnbc`, `lntb` ou `lnbcrt`; 20 a 4096 caracteres de fatura após o prefixo. |
-| `fee_limit_sats` | Inteiro de `1` a `1000000`. Padrão é `50`. |
+| `payment_request` | Fatura BOLT11 começando com `lnbc`, `lntb`, `lnbcrt` ou `lnbs`; 20 a 4096 caracteres de fatura após o prefixo. |
+| `fee_limit_sats` | Inteiro de `1` a `1000000`, limitado também pela política de taxa máxima configurada. O padrão é calculado a partir do valor da fatura e de `LIGHTNING_BACKEND_MAX_FEE_PPM`. |
 | `timeout_seconds` | Inteiro de `1` a `600`. Padrão é `60`. |
 
 ## `GET /health`
@@ -127,7 +136,7 @@ curl -sS http://127.0.0.1:8091/health
 
 ## `GET /v1/node/status`
 
-Retorna o status normalizado do nó LND, saldo da carteira on-chain e saldo de canais. A resposta pode ser armazenada em cache interno por `LIGHTNING_BACKEND_STATUS_CACHE_SECONDS`.
+Retorna os campos operacionais públicos do nó LND. O endpoint administrativo `/v1/admin/node/status` mantém os detalhes completos; o cliente LND pode armazenar o status em cache por `LIGHTNING_BACKEND_STATUS_CACHE_SECONDS`.
 
 ### Requisição
 
@@ -142,18 +151,10 @@ curl -sS http://127.0.0.1:8091/v1/node/status \
 {
   "success": true,
   "node": {
-    "identity_pubkey": "02abcdef...",
-    "alias": "kerosene-lnd",
-    "version": "0.20.1-beta",
     "synced_to_chain": true,
     "synced_to_graph": true,
     "block_height": 848000,
-    "num_active_channels": 4,
-    "num_pending_channels": 0,
-    "num_peers": 8,
-    "wallet_confirmed_balance_sats": 1500000,
-    "channel_local_balance_sats": 900000,
-    "channel_remote_balance_sats": 600000
+    "network": "mainnet"
   }
 }
 ```
@@ -293,7 +294,7 @@ Campos:
 | Campo | Obrigatório | Descrição |
 | --- | --- | --- |
 | `payment_request` | Sim | Fatura BOLT11. |
-| `fee_limit_sats` | Não | Limite fixo de taxa de 1 a 1.000.000 sats. Padrão é 50. |
+| `fee_limit_sats` | Não | Limite fixo de taxa de 1 a 1.000.000 sats, limitado também pela política de taxa máxima configurada. O padrão é calculado a partir do valor da fatura e de `LIGHTNING_BACKEND_MAX_FEE_PPM`. |
 | `timeout_seconds` | Não | Tempo limite de pagamento LND de 1 a 600 segundos. Padrão é 60. |
 
 ### Exemplo

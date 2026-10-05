@@ -4,8 +4,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from src.core.security import ApiError
-from src.infra.cohesion import CohesionStore, IdempotencyClaim
+from src.application.security import ApiError
+from src.adapters.outbound.persistence.cohesion import CohesionStore, IdempotencyClaim
 
 
 class CohesionStoreTests(unittest.TestCase):
@@ -13,7 +13,7 @@ class CohesionStoreTests(unittest.TestCase):
         payment_hash = "ab" * 32
         with tempfile.NamedTemporaryFile() as tmp:
             store = CohesionStore(tmp.name, claim_lease_seconds=5)
-            with patch("src.infra.cohesion.time.time", return_value=1000):
+            with patch("src.adapters.outbound.persistence.cohesion.time.time", return_value=1000):
                 first = store.claim_idempotent(
                     "principal:key",
                     "fingerprint",
@@ -26,7 +26,7 @@ class CohesionStoreTests(unittest.TestCase):
                     first.token,
                     payment_hash,
                 )
-            with patch("src.infra.cohesion.time.time", return_value=1006):
+            with patch("src.adapters.outbound.persistence.cohesion.time.time", return_value=1006):
                 second = store.claim_idempotent(
                     "principal:key",
                     "fingerprint",

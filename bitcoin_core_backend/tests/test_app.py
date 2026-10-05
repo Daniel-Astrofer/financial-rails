@@ -6,8 +6,8 @@ from unittest.mock import patch
 if importlib.util.find_spec("flask") is None or importlib.util.find_spec("requests") is None:
     raise unittest.SkipTest("Flask test dependencies are not installed")
 
-from src.api.app import create_app
-from src.core.config import AppConfig
+from src.adapters.inbound.http.app import create_app
+from src.config.settings import AppConfig
 
 
 def app_config(state_db_path):
@@ -40,7 +40,7 @@ def app_config(state_db_path):
 
 def create_test_app(state_db_path):
     with patch(
-        "src.infra.rpc.BitcoinRPCClient.call",
+        "src.adapters.outbound.bitcoin_core.rpc.BitcoinRPCClient.call",
         return_value={"chain": "regtest"},
     ):
         return create_app(app_config(state_db_path))
@@ -82,7 +82,7 @@ class AppRouteTests(unittest.TestCase):
             app = create_test_app(tmp.name)
             client = app.test_client()
 
-            with patch("src.infra.rpc.BitcoinRPCClient.call", return_value=["kerosene"]) as call:
+            with patch("src.adapters.outbound.bitcoin_core.rpc.BitcoinRPCClient.call", return_value=["kerosene"]) as call:
                 first = client.post(
                     "/v1/wallets",
                     json={"name": "kerosene"},

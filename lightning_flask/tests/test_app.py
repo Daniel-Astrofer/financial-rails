@@ -11,8 +11,8 @@ if importlib.util.find_spec("flask") is None:
     raise unittest.SkipTest("Flask is not installed")
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from src.api.app import create_app
-from src.core.config import Settings
+from src.adapters.inbound.http.app import create_app
+from src.config.settings import Settings
 
 
 PAYMENT_HASH = "a" * 64
@@ -182,7 +182,7 @@ class LightningAppTests(unittest.TestCase):
             "Idempotency-Key": "payment-timeout-0001",
         }
         body = {"payment_request": INVOICE, "fee_limit_sats": 10, "timeout_seconds": 30}
-        with patch("src.infra.cohesion.time.time", return_value=1000):
+        with patch("src.adapters.outbound.persistence.cohesion.time.time", return_value=1000):
             first = self.client.post("/v1/payments", json=body, headers=headers)
 
         self.assertEqual(504, first.status_code)
@@ -191,7 +191,7 @@ class LightningAppTests(unittest.TestCase):
             "status": "SUCCEEDED",
             "fee_sats": 2,
         }
-        with patch("src.infra.cohesion.time.time", return_value=1301):
+        with patch("src.adapters.outbound.persistence.cohesion.time.time", return_value=1301):
             second = self.client.post("/v1/payments", json=body, headers=headers)
 
         self.assertEqual(202, second.status_code, second.get_json())

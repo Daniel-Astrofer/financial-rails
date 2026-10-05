@@ -1,7 +1,7 @@
 import unittest
 
-from src.core.errors import ApiError
-from src.core.validation import (
+from src.application.errors import ApiError
+from src.application.validation import (
     btc_to_sats,
     normalize_outputs,
     parse_non_negative_int,

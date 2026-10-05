@@ -1,8 +1,8 @@
 import unittest
 from unittest.mock import patch
 
-from src.core.config import Settings
-from src.infra.lnd import LndClient
+from src.config.settings import Settings
+from src.adapters.outbound.lightning.lnd import LndClient
 
 
 def settings() -> Settings:
